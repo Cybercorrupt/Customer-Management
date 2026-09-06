@@ -20,6 +20,25 @@ import { ErrorView, LoadingView } from "@/src/components/StateViews";
 import { useSettings } from "@/src/settings/SettingsContext";
 import { makeStyles, useTheme } from "@/src/theme";
 
+// Normalizes a latitude/longitude coming from DB/API into a valid number.
+// Accepts number or numeric string; rejects null/undefined/empty/NaN/Infinity
+// and values outside the given range. Returns null when invalid.
+function toCoordinate(value: unknown, min: number, max: number): number | null {
+  let n: number;
+  if (typeof value === "number") {
+    n = value;
+  } else if (typeof value === "string") {
+    const s = value.trim();
+    if (s === "") return null;
+    n = Number(s);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(n)) return null;
+  if (n < min || n > max) return null;
+  return n;
+}
+
 function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   const styles = useStyles();
   return (
@@ -86,12 +105,14 @@ export default function CustomerDetailScreen() {
     );
   }
 
-  const hasCoords = data.latitude != null && data.longitude != null;
+  const lat = toCoordinate(data.latitude, -90, 90);
+  const lng = toCoordinate(data.longitude, -180, 180);
+  const hasCoords = lat != null && lng != null;
 
   const openMaps = () => {
     if (!hasCoords) return;
     Linking.openURL(
-      `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}`,
+      `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
     );
   };
 
@@ -114,7 +135,7 @@ export default function CustomerDetailScreen() {
       data.whatsapp ? `WA: ${data.whatsapp}` : null,
       data.address ? `Alamat: ${data.address}` : null,
       hasCoords
-        ? `Lokasi: https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}`
+        ? `Lokasi: https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
         : null,
     ].filter(Boolean);
     Linking.openURL(`https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`);
@@ -224,12 +245,12 @@ export default function CustomerDetailScreen() {
         <View style={styles.card}>
           {hasCoords ? (
             <>
-              <InfoRow label="Latitude" value={String(data.latitude)} />
-              <InfoRow label="Longitude" value={String(data.longitude)} last />
+              <InfoRow label="Latitude" value={String(lat)} />
+              <InfoRow label="Longitude" value={String(lng)} last />
               <View style={{ marginTop: 14 }}>
                 <CustomerMap
-                  latitude={data.latitude as number}
-                  longitude={data.longitude as number}
+                  latitude={lat}
+                  longitude={lng}
                   title={data.customer_name}
                 />
               </View>
@@ -241,7 +262,7 @@ export default function CustomerDetailScreen() {
           ) : (
             <View style={styles.noLocation} testID="no-location">
               <MapPin size={32} color={colors.muted} weight="duotone" />
-              <Text style={styles.noLocationText}>Lokasi customer belum tersedia.</Text>
+              <Text style={styles.noLocationText}>📍 Lokasi customer belum tersedia</Text>
             </View>
           )}
         </View>

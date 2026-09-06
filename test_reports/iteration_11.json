@@ -1,0 +1,31 @@
+{
+  "summary": "Verified the Android force-close fix for Customer Detail map rendering. Tested LOGIC of frontend/app/customer/[id].tsx via web preview (CustomerMap.web.tsx is what browser shows; the native MapView crash cannot be reproduced in a browser, but the guarding logic that prevents feeding invalid coords to native is the actual fix). Logged in as regular user (user/user123), then exercised both branches: (a) customer with valid coordinates (c031299, -7.207777/112.813127) opens without error and renders Latitude, Longitude, customer-map placeholder, and 'Open in Google Maps' button; (b) customer with null coordinates (c038864, c059615, c076562, c012260) opens successfully and renders the no-location empty state (testID='no-location') with '📍 Lokasi customer belum tersedia' — no Latitude/Longitude rows, no map, no crash/white screen. Ran a stability loop opening 7 different customer detail screens (mix of valid + invalid) back-to-back; every screen mounted its scroll view and the correct branch (map vs empty). Backend regression: GET /api/customers returns 200 with 48 items (44 valid coords, 4 with null coords); GET /api/customers/c031299 and /api/customers/c038864 both return 200 with unchanged data. The toCoordinate() helper correctly maps null → invalid; static review confirms it also rejects '', non-numeric strings, NaN, Infinity, and out-of-range values (lat outside -90..90, lng outside -180..180) — so any dirty DB row will be routed to the empty state instead of MapView. Defensive guard in CustomerMap.native.tsx (returns null when latitude/longitude fail Number.isFinite + range check) provides a second line of defence before react-native-maps sees the value. Fix looks solid.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "toCoordinate() in customer/[id].tsx is correct and exhaustive: rejects null/undefined/non-string-non-number, empty/whitespace strings, NaN/Infinity, and out-of-range values. Both lat (-90..90) and lng (-180..180) are validated with the right ranges.",
+    "CustomerMap.native.tsx has an independent Number.isFinite + range guard before instantiating MapView/Marker — good belt-and-suspenders defence for the exact Android crash path.",
+    "CustomerMap.web.tsx calls latitude.toFixed(5)/longitude.toFixed(5) directly, but is only reached after the parent verifies hasCoords, so no crash risk on web either.",
+    "hasCoords also correctly gates the openMaps handler and the shareViaWhatsApp map-link line — no dangling reference to invalid coords anywhere in the file."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (GET list + GET valid + GET invalid all 200, data intact)",
+    "frontend": "100% (valid path renders map+coords, invalid path renders no-location empty state, 7-screen stability loop passes)"
+  },
+  "seed_data_creation": "No seed data modified. Used the existing 48 seeded customers — 44 have valid coords, 4 have null coords, which is enough to exercise both branches without admin edits.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend env key is EXPO_PUBLIC_BACKEND_URL (not EXPO_BACKEND_URL). Login screen has no testIDs on the two TextInputs or the LOGIN Pressable — use await page.query_selector_all('input') then page.get_by_text('LOGIN', exact=True).click(force=True). Existing customers with null coords for reproducing empty-state: c038864, c059615, c076562, c012260. Existing customers with valid coords: c031299, c029536. The native MapView crash itself cannot be reproduced via web preview (Metro serves CustomerMap.web.tsx); only the surrounding validation logic can be exercised — which this run did.",
+  "rca_of_issue": "Root cause (confirmed by code review + behaviour): Customer Detail previously gated the MapView on `latitude != null && longitude != null`. On Android, react-native-maps's native MapView asserts latitude/longitude are finite numbers inside the WGS84 range; when the DB rows contained empty strings, non-numeric strings, or NaN (which JS coerces to a number but fails Number.isFinite), the JS-to-native bridge received invalid doubles → JNI abort → force close. Fix applied by main agent (verified in this run): toCoordinate() normalises number|numeric-string and rejects null/undefined/''/non-numeric/NaN/Infinity/out-of-range, hasCoords = lat!=null && lng!=null after normalisation, and MapView/Marker only render inside the hasCoords branch. CustomerMap.native.tsx also independently returns null on invalid input, so even a future regression that forgets the parent check will not crash Android. Reproduction (post-fix): navigate to /customer/c038864 as user → detail screen loads, shows 'Lokasi customer belum tersedia' empty state, no crash. Mitigation for the DB side would be to also filter/clean bad rows at the API layer, but that is optional — the client is now safe."
+}

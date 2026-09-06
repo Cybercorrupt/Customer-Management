@@ -14,6 +14,15 @@ export function CustomerMap({
   title: string;
 }) {
   const styles = useStyles();
+
+  // Defensive guard: never hand invalid coordinates to the native MapView,
+  // which force-closes on Android when latitude/longitude are NaN or out of range.
+  const validLat = Number.isFinite(latitude) && latitude >= -90 && latitude <= 90;
+  const validLng = Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+  if (!validLat || !validLng) {
+    return null;
+  }
+
   return (
     <View style={styles.wrap} testID="customer-map">
       <MapView
