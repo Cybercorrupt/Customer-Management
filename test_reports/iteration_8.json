@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration-8 review verified end-to-end. Backend: 10/10 pytest passed in /app/backend/tests/test_iteration8_features.py against live https://customer-hub-523.preview.emergentagent.com. Confirmed (a) GET /api/about returns app_name='Customer Data Management', developer='MeO-Labs', author='MeO-Labs', copyright contains 'MeO-Labs', and 'platform' key is ABSENT; (b) GET /api/admin/supabase includes bool 'has_access_token' (currently false — no PAT stored, matches request note); (c) GET /api/admin/supabase/schema-status returns all 7 expected tables {customers, purchasing_sizes, segments, payment_terms, areas, app_users, app_config} with exists=true, missing=[], all_present=true; (d) GET /api/admin/conflicts/count returns {count: int>=0} (currently 0); (e) POST /api/admin/supabase/ensure-schema with empty body returns HTTP 400 with detail 'Personal Access Token Supabase diperlukan untuk membuat tabel otomatis.'; (f) auth flows OK — POST /api/login user/user123 and POST /api/admin/login admin/admin123 both 200, user token receives 403 on /api/admin/supabase and /api/admin/conflicts/count, and /api/admin/login rejects non-admin credentials. Frontend (mobile 390x844 Expo web preview): user login → dashboard; kpi-bad-debt renders with caret toggle 'toggle-bad-debt' — default EXPANDED showing count (8) and 'Rp 1.831.000.000' Total Nominal, tap collapses to header only (Rp text disappears), tap again re-expands. About screen (drawer→Tentang) shows only rows [Application Name, Version, Developer, Author] — Developer=MeO-Labs, Author=MeO-Labs, NO 'Platform' row anywhere, footer copyright '© 2026 MeO-Labs. All rights reserved.'. Hidden admin path works: 8 taps on about-version-value navigates to /admin-login, admin/admin123 lands on /admin/dashboard. Admin Database Connection screen: toggle-tutorial and toggle-sql collapsed by default (no CREATE TABLE text visible), BUAT TABEL OTOMATIS section shows supabase-access-token-input, check-schema-button, ensure-schema-button; tapping Cek Tabel populates all 7 table-status chips with green check marks; toggling SQL reveals CREATE TABLE SQL as expected. Admin drawer 'Sync Conflicts' → /admin/conflicts renders 'Tidak ada konflik' empty state without any crash or red-screen (count=0 so no badge, matches request expectation).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration8_features.py",
+    "/app/test_reports/pytest/iteration8_features.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:904-917 AboutInfo model has NO 'platform' field — response_model=AboutInfo guarantees platform is stripped even if legacy Mongo docs still contain it; safe.",
+    "server.py:1055 has_access_token exposed as bool via bool(doc.get('access_token_ciphertext')) — will only flip true after a POST /admin/supabase/ensure-schema with a non-empty body succeeds (line 1280-1285). Currently false as expected.",
+    "server.py:1117-1128 SCHEMA_TABLES enumerates exactly the 7 tables tested; schema-status contract is stable.",
+    "frontend/app/(app)/dashboard.tsx:31 default useState(true) means bad-debt card starts expanded — matches request wording 'expands/collapses'.",
+    "frontend/src/components/AboutContent.tsx:37-42 info[] contains only Application Name/Version/Developer/Author — Platform row already removed.",
+    "frontend/app/admin/supabase.tsx testIDs (toggle-tutorial, toggle-sql, supabase-access-token-input, check-schema-button, ensure-schema-button) all rendered and functional; tutorial+SQL default to collapsed as required."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration8_features.py"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (12/12 UI checks)"},
+  "seed_data_creation": "None — read-only tests only. No writes to Mongo or Supabase. ensure-schema was invoked with empty body which is guaranteed by backend to short-circuit at HTTP 400 before any DDL is attempted, so no Supabase side-effects.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Reuse /app/backend/tests/test_iteration8_features.py — 10 tests, ~4s runtime, requires only backend URL from EXPO_PUBLIC_BACKEND_URL and the seeded admin/user creds. Frontend admin-only screens are reachable at /admin-login directly (bypassing 8-tap gesture) which is faster for regression. Access-token status flips has_access_token=true only after a real Supabase Personal Access Token (sbp_...) is provided to POST /admin/supabase/ensure-schema — DO NOT attempt this in automated tests as it would trigger live DDL on the customer's Supabase project."
+}

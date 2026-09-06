@@ -1,0 +1,42 @@
+{
+  "summary": "Backend pytest (test_trash_sync_status.py): 11/12 pass. Verified: (1) Trash flow — customer soft-delete appears in /api/admin/trash/customer, restore brings it back, purge permanently removes (not in trash, not in list); (2) Trash counts include all 5 entities (customer, purchasing_size, segment, top, area); (3) Area master soft-delete/restore round-trip works via /api/admin/trash/area; (4) GET /api/admin/export.xlsx and /api/admin/template.xlsx both return 200 with 'Area' sheet present alongside Customers/Purchasing Size/Segment/TOP; (5) Import XLSX auto-creates referenced area master and returns per-entity 'master' summary WITH the 'area' key (no more 'undefined'); (6) GET /api/sync/status returns the exact shape {online,status,pending,failed,conflicts,last_sync_at,last_pull_at} for BOTH admin and user with status in {offline,syncing,synced,sync_failed,conflict}; unauthenticated -> 401; (7) POST /api/admin/supabase/pull returns {success,summary} with customer summary having created/updated/deleted/skipped/conflicts keys, area entry legitimately reports {error:'tabel tidak ditemukan'} (expected — user hasn't run schema on Supabase yet). Frontend (390x844): admin login via /login works; landed on /dashboard; SyncStatus pill with testID sync-status-syncing renders both at top-level header AND inside the admin drawer (visible=True), status='syncing' with pending=2 which is the expected legitimate value while area-master rows sit in the queue; no red screens; no console errors (only the pre-existing benign 'shadow*' RN Web deprecation warning). ONE failing pytest: TestSupabasePull::test_pull_does_not_resurrect_purged — after CREATE+DELETE+PURGE of a customer, POST /api/admin/supabase/pull re-inserts the row locally because Supabase still returns the original active row (the purge tombstone push likely hasn't been drained before the pull, and _pending_entity_ids does not always block the resurrection — this is a real conflict-safety gap for a purged-then-pulled admin flow).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/admin/supabase/pull", "issue": "Purged local customer is resurrected by pull. Repro: POST /api/customers -> DELETE /api/customers/{id} -> POST /api/admin/trash/customer/purge (ids:[id]) -> POST /api/admin/supabase/pull. Result: GET /api/customers shows the purged id again. Expected: purged rows must never be resurrected (spec: 'CONFLICT-SAFE PULL … does NOT resurrect locally-purged customers'). Root cause is likely a race between the tombstone push enqueued by purge and the manual pull — _pending_entity_ids only guards items still in status pending|failed, so if the worker drains the tombstone between purge and pull (or if Supabase hasn't yet reflected deleted_at when the pull SELECTs), _apply_remote_rows falls through to the upsert branch (loc=None, not in pending, remote.deleted_at not set yet in the fetched row).", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* styles", "issue": "RN Web deprecation warning still present: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Non-blocking; pre-existing from iteration 3."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_trash_sync_status.py",
+    "/app/test_reports/pytest/trash_sync_status.xml"
+  ],
+  "action_items": [
+    "Fix pull->resurrect race in _apply_remote_rows: before applying a non-tombstone remote row to Local DB, also check for the ABSENCE of any local row (loc is None) combined with an existing tombstone/purge marker — e.g., persist a 'purged_ids' sync_state marker (or a soft tombstone row instead of hard-delete on purge) so pull can skip 'created' rows whose id was purged locally. Alternatively, force-drain the queue (sync_engine.drain(force=True)) synchronously inside POST /api/admin/supabase/pull BEFORE calling _sb_select_all so Supabase always reflects local tombstones first.",
+    "Optional: migrate shadow* style props to boxShadow to silence RN Web warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py _purge_ids enqueues a tombstone then hard-deletes locally — but the manual pull endpoint does NOT drain the queue before reading Supabase, so the tombstone can arrive at Supabase AFTER the pull SELECT (=> pull sees stale active row and resurrects locally).",
+    "_apply_remote_rows only protects against unsynced changes via _pending_entity_ids; there is no cross-check for a purged/never-had-local + not-in-pending + remote-not-tombstoned combination.",
+    "GET /api/sync/status correctly returns 401 for unauth and works for both roles; enum value derived from queue_stats+conflicts+configured — solid.",
+    "Excel Area sheet present in template + export; import commit auto-creates referenced area values and updates master summary with the 'area' key — matches spec.",
+    "Trash TABS ordering in frontend/app/admin/trash.tsx has 5 entries — customer/purchasing_size/segment/area/top; testIDs (trash-tab-{key}) present, restore/purge/empty buttons all have testIDs.",
+    "SyncStatus component renders in both drawers with testID sync-status-<status>; UI observed showing 'Syncing (2)' matching the queue pending count."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_trash_sync_status.py"
+  ],
+  "success_rate": {"backend": "92% (11/12)", "frontend": "100% (smoke: login + drawer + sync badge)"},
+  "seed_data_creation": "Test-scoped rows use TEST-/TEST_ prefixes and are soft-deleted+purged in the same test.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login testIDs on /login: login-username-input, login-password-input, login-submit-button. SyncStatus testID: sync-status-<status>. Trash testIDs: trash-tab-{key}, trash-row-{id}, restore-selected, purge-selected, empty-trash-button, trash-confirm-modal/ok/cancel. The area-master 'tabel tidak ditemukan' branch in /api/admin/supabase/pull is EXPECTED per main-agent context (Supabase schema not applied yet) and must not be flagged as a regression. Pre-existing pytest test_create_customer_creates_queue_item is timing-flaky (not part of this run).",
+  "rca_of_issue": "Bug: /api/admin/supabase/pull resurrects a purged customer. Repro (verified): create customer (admin token) -> DELETE (soft) -> POST /api/admin/trash/customer/purge -> POST /api/admin/supabase/pull -> GET /api/customers shows the customer again. Root cause candidates: (a) the pull SELECTs Supabase BEFORE the purge tombstone is drained from sync_queue, so the returned row still has deleted_at=null; (b) _apply_remote_rows falls into the upsert branch because loc=None (row hard-deleted locally by _purge_ids) AND the row is no longer in _pending_entity_ids (worker may have drained it between purge and pull). Mitigation: force-drain the queue at the start of pull_from_supabase (await sync_engine.drain(force=True)), OR store a 'purged' tombstone in a persistent sync_state entry that _apply_remote_rows also checks, OR keep the tombstone locally (soft-delete on purge instead of hard-delete) until it has been confirmed drained + reflected upstream."
+}

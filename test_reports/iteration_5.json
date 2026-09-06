@@ -1,0 +1,42 @@
+{
+  "summary": "All 12 tests in test_trash_sync_status.py PASS (was 11/12 in iteration_4). Critical resurrect fix VERIFIED: TestSupabasePull::test_pull_does_not_resurrect_purged now green — create -> DELETE -> purge -> POST /api/admin/supabase/pull -> customer stays gone from GET /api/customers. Added deeper regression (test_purge_deep_verify.py) that does a DOUBLE pull after purge — also PASS, so the persisted purge marker (sync_state tombstone_version) correctly survives multiple pull cycles. Regressions unbroken: (a) soft-delete customer -> appears in /api/admin/trash/customer -> restore returns to /api/customers; (b) Area master soft-delete -> /api/admin/trash/area -> restore -> visible in /api/admin/master/area, trash-counts still includes area+all 5 entities; (c) /api/admin/export.xlsx & /api/admin/template.xlsx return 200 with Area sheet, import commit auto-creates referenced area and returns master.area (not undefined); (d) /api/sync/status shape+enum verified for admin & user, 401 for unauth; (e) POST /api/admin/supabase/pull returns {success,summary} with customer having created/updated/deleted/skipped/conflicts keys and per-master entries (area entry legitimately reports {error:'tabel tidak ditemukan'} — expected, main-agent context). Frontend smoke (390x844): admin login -> /dashboard, user login -> /dashboard, SyncStatus badge renders in both (testID=sync-status-conflict, 'Conflict (1)') — value 'conflict' is a legitimate live state driven by the queued area-master push that Supabase rejects; no red screens, no react-query refetchInterval crash. Pre-existing shadow*/pointerEvents RN Web deprecation warnings remain (non-blocking).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "RN Web shadow* styles", "issue": "Console warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Non-blocking, pre-existing since iteration_3. Reference: any component using shadowColor/shadowOffset/shadowOpacity/shadowRadius (grep for shadowColor in /app/frontend/src)."},
+      {"component": "props.pointerEvents", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Non-blocking; RN Web forward-compat only."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_trash_sync_status.py",
+    "/app/backend/tests/test_purge_deep_verify.py",
+    "/app/test_reports/pytest/trash_sync_status.xml",
+    "/app/test_reports/pytest/purge_deep.xml"
+  ],
+  "action_items": [
+    "Optional cleanup only: migrate shadow* style props to boxShadow and props.pointerEvents to style.pointerEvents to silence RN Web deprecation warnings.",
+    "Not a bug — informational: SyncStatus surfaces 'Conflict (1)' because the queued area-master push is rejected by Supabase ('tabel tidak ditemukan'). Once the areas table is provisioned upstream, badge should return to 'synced'."
+  ],
+  "critical_code_review_comments": [
+    "Fix verified: _purge_ids now writes a durable tombstone marker into sync_state (tombstone_version) and _apply_remote_rows honors it — a stale online row (version <= tombstone_version) cannot resurrect a purged local record. A strictly-newer online version supersedes and clears the marker (correct semantics).",
+    "pull_from_supabase now force-drains sync_engine before reading upstream, so local tombstones reach Supabase before the SELECT — no race window on the manual pull path.",
+    "Double-pull test (test_purge_deep_verify) confirms marker persistence across multiple pulls — the marker is not cleared by an unrelated pull cycle.",
+    "Sync status endpoint remains solid: correct shape/enum for both roles and 401 for unauth.",
+    "Excel round-trip + master.area key + auto-master creation on import all match spec."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_purge_deep_verify.py"
+  ],
+  "success_rate": {"backend": "100% (12/12 iteration file + 1/1 deep verify)", "frontend": "100% (login admin/user + dashboards + SyncStatus badge, no red screen)"},
+  "seed_data_creation": "All test rows use TEST-/TEST_ prefixes and are soft-deleted+purged in the same test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login testIDs on /login: login-username-input, login-password-input, login-submit-button. SyncStatus testID pattern: sync-status-<status> where status ∈ {offline,syncing,synced,sync_failed,conflict}. 'conflict' state is legitimate while Supabase 'areas' table is missing — do not flag as a regression. Fixtures & helpers for admin/user token, purge cleanup live in /app/backend/tests/test_trash_sync_status.py — reuse them.",
+  "rca_of_issue": "iteration_4 critical bug (pull resurrects purged customer) is RESOLVED. Root cause was two-fold: (1) manual pull SELECTed Supabase before the tombstone push drained from sync_queue, and (2) _apply_remote_rows lacked a cross-check for the 'purged locally + not in pending + remote not-yet-tombstoned' combination. Fix (per main-agent context, now verified end-to-end): _purge_ids bumps the tombstone version and writes a durable purge marker into sync_state; _apply_remote_rows refuses to resurrect any remote row whose version <= tombstone_version; pull_from_supabase force-drains the queue first. Confirmed by test_pull_does_not_resurrect_purged AND test_double_pull_does_not_resurrect."
+}

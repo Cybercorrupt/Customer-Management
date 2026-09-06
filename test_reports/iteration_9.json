@@ -1,0 +1,31 @@
+{
+  "summary": "Verified bug fix: DELETE /api/customers/{id} now HARD-deletes the corresponding row from Supabase (previously left a tombstone). Created /app/backend/tests/test_supabase_hard_delete.py with 6 tests covering: admin/user login regression, dashboard statistics regression, full create -> verify-in-Supabase -> delete -> verify-gone-from-Supabase flow, and trash purge no-resurrection. All 6/6 tests pass in 16.6s. The manual /api/admin/supabase/sync endpoint successfully drains the queue and issues HTTP DELETE against Supabase via _sb_delete(). Local Mongo retains soft-delete (deleted_at set, appears in trash); Supabase row is physically removed. Post-purge, Supabase remains empty. Belt-and-braces cleanup wipes any ZZTEST* rows at the end — final direct query to Supabase returns [].",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_supabase_hard_delete.py",
+    "/app/test_reports/pytest/supabase_hard_delete.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "sync_engine.drain() correctly splits queue items by operation ('upsert' vs 'delete') and calls _sb_delete() which issues an HTTP DELETE with `id=in.(\"...\")` — payload is idempotent and safely quoted.",
+    "_purge_ids() enqueues a delete tombstone before local hard-delete and sets a durable tombstone marker in sync_state to prevent pull-based resurrection — correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_supabase_hard_delete.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "N/A (backend-only test request)"},
+  "seed_data_creation": "Two ZZTEST customers were created during testing (ZZTEST<random>) and hard-deleted from both Mongo (via purge) and Supabase (via app DELETE). Final safety-net DELETE against Supabase with customer_code=like.ZZTEST* was also executed. Direct verification query confirms zero leftover rows in Supabase.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Test file /app/backend/tests/test_supabase_hard_delete.py can be reused. It requires EXPO_PUBLIC_BACKEND_URL env (falls back to reading /app/frontend/.env not implemented — pass explicitly). Uses -o addopts=\"\" to bypass pytest-xdist parallel run because Supabase-side state is shared between test classes. Backend uses `EXPO_PUBLIC_BACKEND_URL` (not `EXPO_BACKEND_URL`) in frontend/.env.",
+  "rca_of_issue": "Root cause was in sync_engine.py drain(): all queue items — including deletes — were being pushed via _sb_upsert() with `deleted_at` set, so Supabase retained a tombstone row. Fix: enqueue() now tags is_delete rows as operation='delete'; drain() splits by operation and calls _sb_delete() which issues HTTP DELETE {url}/rest/v1/{table}?{conflict}=in.(\"id\") so the row is physically removed. Verified end-to-end: created ZZTEST customer, confirmed row present in Supabase, called DELETE /api/customers/{id}, forced sync, polled Supabase — row was gone within ~5s. Also verified trash purge path — after purge Supabase remains empty."
+}

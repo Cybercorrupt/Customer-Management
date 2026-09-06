@@ -1,0 +1,36 @@
+{
+  "summary": "Full backend + frontend verification for the new Area master, master-options relations, default logo, and Supabase auto-connect features. Backend pytest (test_area_master_relations.py): 8/8 pass — GET/POST/PUT/DELETE /api/admin/master/area work with duplicate 409 and soft-delete, /api/admin/master-options returns {segment, purchasing_size, area, top} name lists (admin only; 403 for user), customer create+update with 'area' persists (verified via GET), and GET /api/admin/supabase returns configured:true & sync_enabled:true with a supabase.co URL. Frontend (390x844 mobile viewport): default brand-logo visible on Login; admin/admin123 login lands on Admin Dashboard; Master Data screen shows all 4 chip tabs (purchasing_size, segment, area, top), Area tab lists 10 seeded areas (Bandung, Batam, Denpasar, Jakarta, Makassar, Medan, Palembang, Semarang, …); Add Area via UI works (11 rows after add) and delete round-trip works; Add Customer form dropdowns Segment/Purchasing Size/Payment Terms/Area are all populated from master-options (Area shows Bandung, Batam, Denpasar, Jakarta, Makassar, Medan, Palembang, Semarang); App Settings screen renders LOGO APLIKASI (Ganti Logo) + WARNA/TEMA presets + DATA APLIKASI fields; About page shows default about-logo and version is tappable. No red screens, no console errors during authenticated flows. Only observed console warning is a benign RN Web deprecation: `\"shadow*\" style props are deprecated. Use \"boxShadow\".`",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* styles", "issue": "React Native Web logs deprecation warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' — non-blocking but should be migrated when convenient."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_area_master_relations.py",
+    "/app/test_reports/pytest/area_master_results.xml"
+  ],
+  "action_items": [
+    "Optional: migrate `shadowColor/shadowOffset/shadowOpacity/shadowRadius` usages to `boxShadow` to silence RN Web deprecation warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py master endpoints correctly return {id,name,description} without leaking _id (uses projection {_id:0}).",
+    "GET /api/admin/master-options is admin-guarded via require_admin — correct (matches the customer-form dropdown consumer which is admin-only).",
+    "Customer create/update accepts and persists 'area' as a string and dashboard by_area aggregation continues to include the new value (verified list & detail).",
+    "Supabase auto-connect: /api/admin/supabase returns configured:true+sync_enabled:true when SUPABASE_DEFAULT_URL/KEY are set in backend/.env — as designed.",
+    "admin-customer-form.tsx reads options via useQuery(['master-options']) and area is validated required — good relational binding to master data.",
+    "About page uses `about-logo` testID and version value uses `about-version-value` with tap handler — hidden admin-login route matches spec."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_area_master_relations.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Test-scoped Area rows are created with `TEST_Area_<hex>` prefix and cleaned up (soft-deleted) in the same test. One UI-created area with prefix `UITEST_` was also removed after verification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Storage token key is `cm_access_token`. Master types are {purchasing_size, segment, area, top}. Master-options endpoint is admin-only. Supabase env vars in backend/.env (SUPABASE_DEFAULT_URL/KEY) drive auto-connect; area-master rows will sit as pending queue items until the `areas` table exists in Supabase — expected & safe. Pre-existing pytest `test_create_customer_creates_queue_item` is timing-flaky and NOT a regression (per main agent).",
+  "rca_of_issue": "N/A — feature verification, no bugs found."
+}

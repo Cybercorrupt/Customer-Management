@@ -1,0 +1,150 @@
+{
+  "app_name": "Customer Management",
+  "personality": "1 iOS-Native Clean (Adapted for B2B Corporate Android)",
+  "personality_one_liner": "A highly functional, crisp, and trustworthy corporate CRM that prioritizes data readability and straightforward navigation over decorative flair.",
+  "color": {
+    "surface": "#F4F7F9",
+    "onSurface": "#111827",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#111827",
+    "surfaceTertiary": "#E2E8F0",
+    "onSurfaceTertiary": "#475569",
+    "surfaceInverse": "#111827",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#1F5297",
+    "onBrand": "#FFFFFF",
+    "brandPrimary": "#1F5297",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#EE8C28",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E8F0FE",
+    "onBrandTertiary": "#1F5297",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#EE8C28",
+    "onWarning": "#FFFFFF",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#3B82F6",
+    "onInfo": "#FFFFFF",
+    "border": "#E2E8F0",
+    "borderStrong": "#CBD5E1",
+    "divider": "#F1F5F9",
+    "muted": "#64748B"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous padding inside cards, clear vertical rhythm. No cramped lists.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "drawer",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "false",
+    "do's": [],
+    "dont's": ["Do not use glassmorphism. User strictly prohibited it."]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "solid surfaceSecondary",
+      "android": "solid surfaceSecondary",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Login",
+      "purpose": "Secure entry point for corporate users.",
+      "states": {
+        "loading": "Centered spinner over login form.",
+        "empty": "N/A",
+        "error": "Inline text below inputs in #EF4444. Toast for Network Error."
+      },
+      "layout": "Vertical stack centered. MedLabs text logo at top. Username and Password inputs stacked (labels above). Full-width #1F5297 primary button."
+    },
+    {
+      "name": "Dashboard",
+      "purpose": "Provide at-a-glance KPI and charts for customer status.",
+      "states": {
+        "loading": "Skeleton cards mimicking KPI layout.",
+        "empty": "N/A",
+        "error": "Card showing 'Failed to load dashboard' with Retry button."
+      },
+      "layout": "Vertical scroll. Top: 2 KPI Cards side-by-side or stacked (Status Customer, Status Bad Debt). Middle: 3 Donut Charts stacked vertically inside white cards. Legend strictly BELOW chart using format: dot Label / XXX Customer • XX.X%. Use brand colors (+ success/error) for chart slices."
+    },
+    {
+      "name": "Customers",
+      "purpose": "List all customers with searchable interface.",
+      "states": {
+        "loading": "List of 5 skeleton rows.",
+        "empty": "Icon + 'No customers found.'",
+        "error": "Icon + 'Network Error. Tap to retry.'"
+      },
+      "layout": "Sticky search bar at top. FlatList of customer cards. Each card displays Customer Name, Code, Segment, Area, Status (colored badge). Tidy icon-caption spacing. Read-only."
+    },
+    {
+      "name": "Customer Detail",
+      "purpose": "Show comprehensive data and location for a specific customer.",
+      "states": {
+        "loading": "Skeleton detail view.",
+        "empty": "N/A",
+        "error": "Customer Not Found illustration with back button."
+      },
+      "layout": "Scrollable. Header with Name & Code. Data listed cleanly in key-value rows. Bottom section: Map View taking 200px height. Marker at lat/long. Button below map: 'Open in Google Maps'. Fallback if no coords: centered text 'Lokasi customer belum tersedia.' in place of map."
+    },
+    {
+      "name": "About",
+      "purpose": "Display application and developer information.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Centered layout. App name bold. Tagline 'Customer Data & Analytics'. App Info list (Version, Developer, Platform). Minimal footer text fixed at bottom: '© 2026 MedLabs'."
+    }
+  ],
+  "images": {
+    "login_hero": {
+      "url": "https://images.unsplash.com/photo-1628012209120-d9db7abf7eab?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwxfHxjbGVhbiUyMG1vZGVybiUyMGJ1aWxkaW5nJTIwbWluaW1hbHxlbnwwfHx8fDE3ODg1Mzk3NjF8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern corporate building representing MedLabs headquarters"
+    }
+  },
+  "instructions_to_main_agent": [
+    "STRICT RULE: LIGHT MODE ONLY. Do not configure dark mode options.",
+    "STRICT RULE: NO GLASSMORPHISM, NO GRADIENTS. Do not use expo-blur. Use solid colors and simple shadow tier 1 for elevation.",
+    "STRICT RULE: The About page footer must be minimal, exactly '© 2026 MedLabs'.",
+    "STRICT RULE: For the 3 Donut Charts on the Dashboard, the legend MUST be placed BELOW the chart, never beside it. Use format: colored dot ● Label / XXX Customer • XX.X%.",
+    "STRICT RULE: If a customer detail has no coordinates, hide the map and show the text 'Lokasi customer belum tersedia.' exactly.",
+    "Use '#1F5297' for the Drawer Header and active states. Use '#EE8C28' for secondary actions, warning states, or specific data points in charts.",
+    "Data components (KPIs, Lists, Details) must be framed in simple white cards (surfaceSecondary) with rounded corners (md radius) and a subtle shadow (tier 1).",
+    "Ensure tidy spacing between icons and captions throughout the app, as requested."
+  ]
+}

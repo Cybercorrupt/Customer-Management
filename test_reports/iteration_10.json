@@ -1,0 +1,26 @@
+{
+  "summary": "Verified xlsx import/export bug fix. Created /app/backend/tests/test_import_export_xlsx.py (7 tests, all passing) covering template + export downloads, preview correctness (48-skip on re-export, 1-create on template, clean 400 on non-xlsx), commit of a ZZTEST customer, and cleanup via DELETE + trash purge. Post-run verification confirms seed data is intact (48 active customers, 0 ZZTEST leftovers, 0 trash items). Frontend web smoke test: admin login → /admin/data-sync renders all three buttons ('Export Excel', 'Template', 'Pilih Excel'); triggered the DocumentPicker via expect_file_chooser, uploaded the template, preview UI appeared correctly with '1 Baru / 0 Update / 0 Skip / 0 Error' and CUST-001 CREATE row — no 'Unsupported FormDataPart implementation' error. Note: the native RN (WinterCG File) branch cannot be exercised in a web browser; backend correctness + web-regression clean is the coverage the request asked for.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_import_export_xlsx.py",
+    "/app/test_reports/pytest/import_export_xlsx.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "client.ts uploadXlsx() correctly branches on Platform.OS: web uses Blob via fetch(uri).blob(), native uses new File(uri) from expo-file-system — the Blob-compliant path that WinterCG fetch requires. Same pattern is mirrored in apiUploadLogo. No Content-Type header is set manually so the runtime attaches the multipart boundary — correct.",
+    "data-sync.tsx uses expo-document-picker with copyToCacheDirectory: true so the uri is a stable file:// path suitable for new File(uri) on native. Validation guards against non-.xlsx names before uploading."
+  ],
+  "updated_files": ["/app/backend/tests/test_import_export_xlsx.py (new)"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (web smoke)"},
+  "seed_data_creation": "One ZZTEST001 customer created via xlsx commit during the commit test, then deleted + purged in the same test. Post-run: 48 active customers, empty trash, 0 ZZTEST rows anywhere. Supabase was NOT touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Test file /app/backend/tests/test_import_export_xlsx.py reads EXPO_PUBLIC_BACKEND_URL from /app/frontend/.env via python-dotenv. Header names in the xlsx are 'Customer Code' (space, title-case), not customer_code — the helper normalises both. Native FormData path (RN WinterCG File) cannot be exercised in web preview; if user reports recurrence, request a device build.",
+  "rca_of_issue": "Bug: Expo SDK 57 / RN 0.86 replaced the legacy React Native fetch with WinterCG fetch, which no longer accepts FormData parts shaped as { uri, name, type } — throws 'Unsupported FormDataPart implementation' before the request leaves the client, so backend never saw the request. Fix (applied in client.ts by main agent): for Platform.OS !== 'web', append a Blob-compliant File from expo-file-system: form.append('file', new File(uri), name). Web branch still materialises a Blob via fetch(uri).blob(). Verified in tests: web upload path works (no error banner, preview succeeds); backend accepts multipart uploads for both preview (48-skip on export re-upload, 1-create on template) and commit (ZZTEST001 created, verified via GET, then deleted + purged)."
+}

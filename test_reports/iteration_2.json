@@ -1,0 +1,28 @@
+{
+  "summary": "Retest of the 401 auth-handling bug fix. Backend: 8/8 pytest cases pass (missing token & garbage bearer -> 401 'Invalid or missing authentication token'; valid user/admin login -> JWT + /auth/me works; wrong password -> 'Username atau password salah', NOT the session-expiry message; protected route with valid token -> 200). Frontend (mobile viewport 390x844): wrong-password login correctly shows 'Username atau password salah' (interceptor did NOT hijack it); valid user/user123 login lands on dashboard; corrupting localStorage['cm_access_token'] to '\"badtoken\"' and navigating to a protected route causes the global 401 interceptor to clear the token and the route guard redirects to /login (URL becomes /login, localStorage token = null, NO stuck 'Invalid or missing token' screen); re-login after forced logout works; admin-login route loads. Bug is FIXED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth_401.py",
+    "/app/test_reports/pytest/auth_401_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "client.ts: isLoginPath uses endsWith('/login') which correctly excludes /login and /admin/login — good.",
+    "handleUnauthorized guards against burst of concurrent 401s via signingOut flag — good.",
+    "AuthContext registers unauthorized handler in useEffect and returns the unregister cleanup — good.",
+    "server.py: /login and /admin/login return 'Username atau password salah' (distinct from 'Invalid or missing authentication token'), so the frontend can safely differentiate credential errors from expired-session — verified end to end."
+  ],
+  "updated_files": ["/app/backend/tests/test_auth_401.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None. Used seeded user/user123 and admin/admin123.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The auth 401-handling fix is verified. Storage key is 'cm_access_token' and on web it stores the token JSON-serialized. To simulate expiry: localStorage.setItem('cm_access_token', JSON.stringify('badtoken')) then navigate to a protected route — expect redirect to /login.",
+  "rca_of_issue": "Original bug: no global 401 handler; expired/invalid tokens surfaced 'Invalid or missing authentication token' and left user stuck. Fix (verified): (1) client.ts registers a UnauthorizedHandler and every 401 (except on /login paths) triggers handleUnauthorized -> storage.secureRemove(TOKEN_KEY) + handler; (2) AuthContext registers handler that sets user=null; (3) existing (app)/_layout & admin/_layout guards redirect to /login when user is null. Backend JWT_EXPIRE_MINUTES bumped to 43200 (30d)."
+}
