@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -32,6 +32,17 @@ export default function CustomersScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // Always pull the freshest customers + filter options from the DB whenever
+  // this screen gains focus (RN has no window-focus event), so search/filter
+  // never operate on a stale snapshot after a sync/edit elsewhere.
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["filter-options"] });
+    }, [queryClient]),
+  );
 
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -62,6 +73,14 @@ export default function CustomersScreen() {
   const SEGMENT_OPTS = useMemo(() => [ALL_SEGMENT, ...(filterOpts?.segment ?? [])], [filterOpts]);
   const SIZE_OPTS = useMemo(() => [ALL_SIZE, ...(filterOpts?.purchasing_size ?? [])], [filterOpts]);
   const AREA_OPTS = useMemo(() => [ALL_AREA, ...(filterOpts?.area ?? [])], [filterOpts]);
+
+  // If the currently selected filter value disappears after master data
+  // changes (renamed/deleted), reset it so filtering follows the latest data.
+  useEffect(() => {
+    if (segmentF !== ALL_SEGMENT && !SEGMENT_OPTS.includes(segmentF)) setSegmentF(ALL_SEGMENT);
+    if (sizeF !== ALL_SIZE && !SIZE_OPTS.includes(sizeF)) setSizeF(ALL_SIZE);
+    if (areaF !== ALL_AREA && !AREA_OPTS.includes(areaF)) setAreaF(ALL_AREA);
+  }, [SEGMENT_OPTS, SIZE_OPTS, AREA_OPTS, segmentF, sizeF, areaF]);
 
   const filtered = useMemo(() => {
     if (!data) return [];

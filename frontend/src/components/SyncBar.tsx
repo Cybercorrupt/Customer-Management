@@ -43,6 +43,8 @@ export function SyncBar() {
       queryClient.invalidateQueries({ queryKey: ["sync-status"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["search"] });
+      queryClient.invalidateQueries({ queryKey: ["filter-options"] });
     },
   });
 

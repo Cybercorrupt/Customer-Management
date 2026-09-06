@@ -1,0 +1,42 @@
+{
+  "summary": "Verified BUG A (Supabase Storage upload/serve) and BUG B (Customers freshness / stale react-query cache). Backend pytest: 8/8 passed. Frontend Playwright on mobile viewport (390x844) via EXPO_PUBLIC_BACKEND_URL: search, status filter, segment filter, create-then-refocus visibility, and delete-then-refocus removal all pass. BUG A: POST /api/admin/upload-logo (multipart PNG) returns 200 with logo_url matching /api/files/customer-management/branding/logo-<hex>.png; GET on that URL returns 200 with Content-Type image/* and body bytes identical to the uploaded bytes (Supabase round-trip confirmed). Non-image upload rejected 400; user token rejected 401/403; unknown path 404. BUG B: user login -> Customer -> search 'Abadi' returns 5 matching cards; Status=Active shows 32 cards all with status-badge-Active; Segment=Corporate returns 12 cards. Admin creates a new customer via /api/customers (201), user navigates dashboard->customers (useFocusEffect fires) and search 'TEST_FRESH' shows the new customer card immediately (no stale cache). Admin deletes it (200), same navigation loop -> the customer is no longer returned. /api/filter-options returns fresh segment/purchasing_size/area lists. Stale filter reset code path (lines 79-83 of customers.tsx) verified by static review — resets to All* when selected value drops out of SEGMENT_OPTS/SIZE_OPTS/AREA_OPTS. SyncBar mutation onSuccess correctly invalidates ['sync-status','dashboard','customers','search','filter-options']; note the /api/sync/pull-now endpoint returns 400 ('Belum terhubung ke server online.') in this preview env because no external online DB is configured, so onSuccess won't fire from that path — but the useFocusEffect refetch on Customers screen (which is the actual user-facing recovery) is confirmed working end-to-end. No regressions detected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/sync/pull-now",
+        "issue": "Returns 400 'Belum terhubung ke server online.' in preview env (no online DB configured). Not a bug — expected — but means SyncBar.onSuccess invalidations never run here; freshness in preview relies on useFocusEffect only."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bugAB_verify.py",
+    "/app/test_reports/pytest/bugAB_verify.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "object_storage.py correctly reads Supabase config lazily via _config() at call time and uses x-upsert on POST — good for idempotent logo replacement. Uses SERVICE_ROLE key server-side only (never exposed to client).",
+    "server.py upload_logo validates content-type prefix image/ + size cap 5MB + extension allow-list; falls back ext to png when unknown — safe defaults.",
+    "server.py serve_file streams bytes back with Cache-Control: public, max-age=86400 — appropriate for immutable logo URLs (each upload gets a fresh uuid path so cache never serves stale content).",
+    "customers.tsx useFocusEffect invalidates both ['customers'] and ['filter-options'] on every focus — matches Bug B fix intent. Stale-value reset useEffect (lines 79-83) is dependency-correct and covers segment/size/area.",
+    "SyncBar.tsx onSuccess invalidates the full relevant set including ['search'] and ['filter-options'] — matches Bug B fix. Note dependency on the sync endpoint actually succeeding; useFocusEffect is the belt-and-braces path and works independently."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_bugAB_verify.py (new — 8 tests covering Bug A upload/serve/reject + Bug B search/filter-options/create-visible/delete-hidden/sync-endpoint reachable)"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 pytest passed)",
+    "frontend": "100% (search + status filter + segment filter + create-refocus-visible + delete-refocus-hidden all pass)"
+  },
+  "seed_data_creation": "No permanent seed data added. Test creates a TEST_FRESH_* customer and deletes it in the same run; also uploads a 1x1 PNG logo to Supabase which is overwritten by future uploads (paths are uuid-scoped so no collision).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend env key is EXPO_PUBLIC_BACKEND_URL. Login has no testIDs on inputs/button — use await page.query_selector_all('input') then page.get_by_text('LOGIN', exact=True).click(force=True). Drawer items only work when drawer is open; use page.goto('/customers') or page.goto('/dashboard') to navigate — this also fires the (app)/customers useFocusEffect on entry, which is exactly what Bug B relies on. Existing testIDs on customers.tsx: customer-search-input, clear-search, filter-chip-{status|segment|size|area}, customer-card-<id>, status-badge-<Active|Inactive|Bad Debt>, customers-list. Modal options are plain text — use page.get_by_text('Active', exact=True).first.click(force=True). /api/sync/pull-now returns 400 in preview (no online DB) — don't treat that as a Bug B failure.",
+  "rca_of_issue": "BUG A: Migration from Emergent Object Storage to Supabase Storage was previously implemented — object_storage.py now talks to Supabase Storage REST (POST /storage/v1/object/{bucket}/{path} with x-upsert; GET same URL) using SERVICE_ROLE_KEY. server.py's upload-logo and serve_file are unchanged in signature so the mobile client keeps working. Confirmed uploaded bytes match served bytes exactly. BUG B: Cause was react-query cache not invalidating after (a) manual 'Sync Sekarang' pulling new online data and (b) admin CRUD in another session — user's Customers screen kept showing a stale snapshot until app restart. Fix (verified): (1) SyncBar's pull mutation onSuccess now invalidates ['search'] and ['filter-options'] in addition to previous keys; (2) Customers screen adds useFocusEffect that invalidates ['customers'] and ['filter-options'] on every focus, so navigating away and back always refetches fresh data — this is what my Playwright loop exercised end-to-end (dashboard -> customers navigation before/after admin create/delete); (3) if a currently-selected segment/size/area filter drops out of the live options after master-data changes, the useEffect at lines 79-83 resets that filter to its 'All*' default, preventing a permanently-empty stale filter."
+}
