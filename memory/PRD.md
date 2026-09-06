@@ -30,3 +30,9 @@ Import existing project from GitHub: https://github.com/Cybercorrupt/Customer-Ma
 ## Backlog / Next
 - P1: Verify admin import/export flows and Supabase sync in-app.
 - P2: Broader automated test pass across all screens.
+
+## 2026-09-06 (later) — Supabase + Branding
+- Migrated photo/logo storage from Emergent to Supabase Storage (backend/object_storage.py); bucket `customer-photos`.
+- Seeded default Supabase sync connection via env (SUPABASE_DEFAULT_URL/KEY) so the deployed app is connected out of the box (sync status = synced, pull-now works).
+- Fixed User search/filter staleness (useFocusEffect refetch + SyncBar invalidations + stale-filter reset).
+- Replaced bundled default logo + app launcher icons with user-provided brand image.
