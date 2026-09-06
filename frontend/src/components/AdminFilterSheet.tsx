@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 
-import { AREAS, SEGMENTS, SIZES, STATUSES } from "@/src/constants/customer";
+import { apiFilterOptions } from "@/src/api/client";
+import { STATUSES } from "@/src/constants/customer";
 import { makeStyles, useTheme } from "@/src/theme";
 
 export type CustomerFilters = {
@@ -18,13 +20,6 @@ export const EMPTY_FILTERS: CustomerFilters = {
   area: "All",
 };
 
-const GROUPS: { key: keyof CustomerFilters; label: string; options: string[] }[] = [
-  { key: "status", label: "Status", options: ["All", ...STATUSES] },
-  { key: "segment", label: "Segment", options: ["All", ...SEGMENTS] },
-  { key: "size", label: "Purchasing Size", options: ["All", ...SIZES] },
-  { key: "area", label: "Area", options: ["All", ...AREAS] },
-];
-
 export function AdminFilterSheet({
   visible,
   value,
@@ -39,6 +34,23 @@ export function AdminFilterSheet({
   const styles = useStyles();
   const { colors } = useTheme();
   const [temp, setTemp] = useState<CustomerFilters>(value);
+
+  // Live filter values from the database (master data + distinct customer
+  // values), so Admin filters always match the latest master data.
+  const { data: opts } = useQuery({
+    queryKey: ["filter-options"],
+    queryFn: apiFilterOptions,
+  });
+
+  const GROUPS = useMemo(
+    () => [
+      { key: "status" as const, label: "Status", options: ["All", ...STATUSES] },
+      { key: "segment" as const, label: "Segment", options: ["All", ...(opts?.segment ?? [])] },
+      { key: "size" as const, label: "Purchasing Size", options: ["All", ...(opts?.purchasing_size ?? [])] },
+      { key: "area" as const, label: "Area", options: ["All", ...(opts?.area ?? [])] },
+    ],
+    [opts],
+  );
 
   useEffect(() => {
     if (visible) setTemp(value);

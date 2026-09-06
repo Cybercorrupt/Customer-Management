@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -16,7 +16,7 @@ import {
   X,
 } from "phosphor-react-native";
 
-import { apiBulkDelete, apiBulkStatus, apiCustomers, Customer } from "@/src/api/client";
+import { apiBulkDelete, apiBulkStatus, apiCustomers, apiFilterOptions, Customer } from "@/src/api/client";
 import { AdminFilterSheet, CustomerFilters, EMPTY_FILTERS } from "@/src/components/AdminFilterSheet";
 import { StatusBadge, statusColor } from "@/src/components/StatusBadge";
 import { EmptyView, ErrorView, LoadingView } from "@/src/components/StateViews";
@@ -57,6 +57,34 @@ export default function AdminCustomersScreen() {
     queryFn: () => apiCustomers(debounced || undefined),
   });
 
+  // Always refetch the freshest dataset + filter values whenever this screen
+  // gains focus (RN has no window-focus), so search/filter/sort never operate
+  // on a stale snapshot after add/edit/delete/sync.
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["filter-options"] });
+    }, [queryClient]),
+  );
+
+  // Live filter options to auto-clear a selected filter that no longer exists
+  // after master data changes, so results follow the latest data.
+  const { data: filterOpts } = useQuery({
+    queryKey: ["filter-options"],
+    queryFn: apiFilterOptions,
+  });
+
+  useEffect(() => {
+    if (!filterOpts) return;
+    setFilters((f) => {
+      const next = { ...f };
+      if (f.segment !== "All" && !filterOpts.segment.includes(f.segment)) next.segment = "All";
+      if (f.size !== "All" && !filterOpts.purchasing_size.includes(f.size)) next.size = "All";
+      if (f.area !== "All" && !filterOpts.area.includes(f.area)) next.area = "All";
+      return next.segment === f.segment && next.size === f.size && next.area === f.area ? f : next;
+    });
+  }, [filterOpts]);
+
   const activeCount = Object.values(filters).filter((v) => v !== "All").length;
 
   const filtered = useMemo(() => {
@@ -95,6 +123,7 @@ export default function AdminCustomersScreen() {
     queryClient.invalidateQueries({ queryKey: ["customers"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["filter-options"] });
   };
 
   const deleteMutation = useMutation({
