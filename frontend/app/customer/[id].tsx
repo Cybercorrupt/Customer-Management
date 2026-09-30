@@ -51,7 +51,7 @@ function InfoRow({ label, value, last }: { label: string; value: string; last?: 
 export default function CustomerDetailScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, t } = useSettings();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -187,7 +187,12 @@ export default function CustomerDetailScreen() {
           <InfoRow label="Segment" value={data.segment} />
           <InfoRow label="Purchasing Size" value={data.purchasing_size} />
           <InfoRow label="Payment Terms" value={data.payment_terms} />
-          <InfoRow label="Credit Limit" value={formatCurrency(data.credit_limit)} last />
+          <InfoRow label="Credit Limit" value={formatCurrency(data.credit_limit)} />
+          <InfoRow
+            label={t("detail.invoiceOverdue")}
+            value={formatCurrency(data.invoice_overdue_nominal ?? 0)}
+            last
+          />
         </View>
 
         {/* Contact */}

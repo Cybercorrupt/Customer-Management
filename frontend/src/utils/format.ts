@@ -10,12 +10,22 @@ export function groupThousands(n: number): string {
   return sign + out;
 }
 
-export function formatRupiah(n: number): string {
-  return `Rp ${groupThousands(n)}`;
+export function formatWithSymbol(n: number, symbol: string): string {
+  return `${symbol} ${groupThousands(n)}`;
 }
 
-export function formatCompactRupiah(n: number): string {
-  if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1)} M`;
-  if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toFixed(0)} Jt`;
-  return formatRupiah(n);
+// Compact formatting. `idStyle` uses Indonesian suffixes (Jt = juta, M = miliar);
+// other currencies use the international K / M / B suffixes.
+export function formatCompactCurrency(n: number, symbol: string, idStyle: boolean): string {
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  if (idStyle) {
+    if (abs >= 1_000_000_000) return `${sign}${symbol} ${(abs / 1_000_000_000).toFixed(1)} M`;
+    if (abs >= 1_000_000) return `${sign}${symbol} ${(abs / 1_000_000).toFixed(0)} Jt`;
+    return formatWithSymbol(n, symbol);
+  }
+  if (abs >= 1_000_000_000) return `${sign}${symbol} ${(abs / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 1_000_000) return `${sign}${symbol} ${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}${symbol} ${(abs / 1_000).toFixed(1)}K`;
+  return formatWithSymbol(n, symbol);
 }

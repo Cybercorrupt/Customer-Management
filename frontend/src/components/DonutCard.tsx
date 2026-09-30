@@ -1,13 +1,17 @@
-import React, { useMemo } from "react";
-import { Text, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import { PieChart } from "react-native-gifted-charts";
+import { CaretDown, CaretUp } from "phosphor-react-native";
 
 import { Slice } from "@/src/api/client";
+import { useSettings } from "@/src/settings/SettingsContext";
 import { makeStyles, useTheme } from "@/src/theme";
 
+// Max legend rows shown before the "show more" toggle appears.
+const LEGEND_LIMIT = 5;
+
 // A palette used for slices that are not the semantic status colors.
-function usePalette() {
-  const { colors } = useTheme();
+function usePalette() {  const { colors } = useTheme();
   return [
     colors.brandPrimary,
     colors.brandSecondary,
@@ -38,7 +42,9 @@ export function DonutCard({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { t } = useSettings();
   const palette = usePalette();
+  const [expanded, setExpanded] = useState(false);
 
   const total = useMemo(() => slices.reduce((s, x) => s + x.count, 0), [slices]);
 
@@ -84,7 +90,7 @@ export function DonutCard({
       </View>
 
       <View style={styles.legend}>
-        {colored.map((s) => {
+        {(expanded ? colored : colored.slice(0, LEGEND_LIMIT)).map((s) => {
           const pct = total > 0 ? (s.count / total) * 100 : 0;
           return (
             <View key={s.label} style={styles.legendRow} testID={`legend-${title}-${s.label}`}>
@@ -98,6 +104,25 @@ export function DonutCard({
             </View>
           );
         })}
+
+        {colored.length > LEGEND_LIMIT ? (
+          <Pressable
+            style={({ pressed }) => [styles.moreBtn, pressed && styles.moreBtnPressed]}
+            onPress={() => setExpanded((v) => !v)}
+            testID={`legend-more-${title}`}
+          >
+            <Text style={styles.moreText}>
+              {expanded
+                ? t("chart.showLess")
+                : t("chart.showMore").replace("{n}", String(colored.length - LEGEND_LIMIT))}
+            </Text>
+            {expanded ? (
+              <CaretUp size={14} color={colors.brandPrimary} weight="bold" />
+            ) : (
+              <CaretDown size={14} color={colors.brandPrimary} weight="bold" />
+            )}
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -175,5 +200,25 @@ const useStyles = makeStyles((colors) => ({
     color: colors.muted,
     fontSize: 13,
     marginTop: 1,
+  },
+  moreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    marginTop: 2,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  moreBtnPressed: {
+    backgroundColor: colors.surfaceTertiary,
+  },
+  moreText: {
+    color: colors.brandPrimary,
+    fontSize: 13,
+    fontWeight: "700",
   },
 }));

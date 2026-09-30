@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   CaretRight,
   Coins,
+  CurrencyCircleDollar,
   Info,
   Lifebuoy,
   Lock,
@@ -15,7 +16,7 @@ import {
 
 import { useAuth } from "@/src/auth/AuthContext";
 import { FilterModal } from "@/src/components/FilterModal";
-import { CurrencyFormat, useSettings } from "@/src/settings/SettingsContext";
+import { CurrencyFormat, CurrencyType, CURRENCY_TYPES, useSettings } from "@/src/settings/SettingsContext";
 import { Lang } from "@/src/settings/translations";
 import { makeStyles, useTheme } from "@/src/theme";
 
@@ -27,10 +28,11 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { language, currency, setLanguage, setCurrency, t } = useSettings();
+  const { language, currency, currencyType, setLanguage, setCurrency, setCurrencyType, t } = useSettings();
 
   const [langOpen, setLangOpen] = useState(false);
   const [currOpen, setCurrOpen] = useState(false);
+  const [currTypeOpen, setCurrTypeOpen] = useState(false);
 
   const onLogout = async () => {
     await signOut();
@@ -39,6 +41,7 @@ export default function SettingsScreen() {
 
   const langLabel = language === "id" ? t("lang.id") : t("lang.en");
   const currLabel = t(`currency.${currency}`);
+  const currTypeLabel = t(`currencyType.${currencyType}`);
 
   const Row = ({
     icon,
@@ -116,6 +119,14 @@ export default function SettingsScreen() {
           />
           <View style={styles.rowDivider} />
           <Row
+            testID="settings-currency-type"
+            icon={<CurrencyCircleDollar size={20} color={colors.brandSecondary} weight="fill" />}
+            title={t("settings.currencyType")}
+            value={currTypeLabel}
+            onPress={() => setCurrTypeOpen(true)}
+          />
+          <View style={styles.rowDivider} />
+          <Row
             testID="settings-currency"
             icon={<Coins size={20} color={colors.brandSecondary} weight="fill" />}
             title={t("settings.currency")}
@@ -164,6 +175,20 @@ export default function SettingsScreen() {
           selected={langLabel}
           onSelect={(v) => setLanguage((v === t("lang.en") ? "en" : "id") as Lang)}
           onClose={() => setLangOpen(false)}
+        />
+      ) : null}
+
+      {currTypeOpen ? (
+        <FilterModal
+          visible
+          title={t("settings.currencyType")}
+          options={CURRENCY_TYPES.map((c) => t(`currencyType.${c}`))}
+          selected={currTypeLabel}
+          onSelect={(v) => {
+            const match = CURRENCY_TYPES.find((c) => t(`currencyType.${c}`) === v);
+            if (match) setCurrencyType(match as CurrencyType);
+          }}
+          onClose={() => setCurrTypeOpen(false)}
         />
       ) : null}
 

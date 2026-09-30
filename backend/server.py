@@ -102,6 +102,7 @@ class Customer(BaseModel):
     pic_name: str = ""
     payment_terms: str
     credit_limit: float
+    invoice_overdue_nominal: float = 0
 
 
 class CustomerInput(BaseModel):
@@ -126,6 +127,7 @@ class CustomerInput(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     bad_debt_nominal: float = 0
+    invoice_overdue_nominal: float = 0
 
 
 # ---------------------------------------------------------------------------
@@ -347,6 +349,7 @@ async def create_customer(body: CustomerInput, admin=Depends(require_admin)):
         "pic_name": body.pic_name.strip(),
         "payment_terms": body.payment_terms,
         "credit_limit": float(body.credit_limit),
+        "invoice_overdue_nominal": float(body.invoice_overdue_nominal or 0),
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "deleted_at": None,
         "version": prev_version + 1,
@@ -379,6 +382,7 @@ async def update_customer(customer_id: str, body: CustomerInput, admin=Depends(r
         "pic_name": body.pic_name.strip(),
         "payment_terms": body.payment_terms,
         "credit_limit": float(body.credit_limit),
+        "invoice_overdue_nominal": float(body.invoice_overdue_nominal or 0),
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "change_id": uuid4().hex,
     }
@@ -2473,13 +2477,8 @@ async def dashboard_statistics(user=Depends(current_user)):
         for d in docs:
             key = d.get(field) or "Unknown"
             counts[key] = counts.get(key, 0) + 1
-        ordered = sorted(counts.items(), key=lambda x: x[1], reverse=True)
-        top = ordered[:5]
-        others = sum(c for _, c in ordered[5:])
-        result = [{"label": k, "count": v} for k, v in top]
-        if others > 0:
-            result.append({"label": "Others", "count": others})
-        return result
+        ordered = sorted(counts.items(), key=lambda x: (-x[1], str(x[0]).lower()))
+        return [{"label": k, "count": v} for k, v in ordered]
 
     def region_counts(field: str):
         counts: dict = {}
@@ -2489,12 +2488,7 @@ async def dashboard_statistics(user=Depends(current_user)):
                 continue
             counts[key] = counts.get(key, 0) + 1
         ordered = sorted(counts.items(), key=lambda x: (-x[1], x[0].lower()))
-        top = ordered[:6]
-        others = sum(c for _, c in ordered[6:])
-        result = [{"label": k, "count": v} for k, v in top]
-        if others > 0:
-            result.append({"label": "Lainnya", "count": others})
-        return result
+        return [{"label": k, "count": v} for k, v in ordered]
 
     return {
         "total_customer": total,

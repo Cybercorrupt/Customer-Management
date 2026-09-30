@@ -57,6 +57,7 @@ export default function CustomerFormScreen() {
   const [paymentTerms, setPaymentTerms] = useState("");
   const [area, setArea] = useState("");
   const [creditLimit, setCreditLimit] = useState("");
+  const [invoiceOverdue, setInvoiceOverdue] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [picName, setPicName] = useState("");
@@ -102,6 +103,7 @@ export default function CustomerFormScreen() {
       setPaymentTerms(c.payment_terms);
       setArea(c.area);
       setCreditLimit(String(c.credit_limit ?? ""));
+      setInvoiceOverdue(c.invoice_overdue_nominal ? String(c.invoice_overdue_nominal) : "");
       setPhone(c.phone ?? "");
       setWhatsapp(c.whatsapp ?? "");
       setPicName(c.pic_name ?? "");
@@ -191,6 +193,9 @@ export default function CustomerFormScreen() {
     const credit = toNum(creditLimit || "0");
     if (credit === null || Number.isNaN(credit) || credit < 0) errs.creditLimit = "Credit Limit harus angka.";
 
+    const overdue = toNum(invoiceOverdue || "0");
+    if (overdue === null || Number.isNaN(overdue) || overdue < 0) errs.invoiceOverdue = "Invoice Overdue harus angka.";
+
     const lat = toNum(latitude);
     if (lat !== null && Number.isNaN(lat)) errs.latitude = "Latitude harus angka.";
     const lng = toNum(longitude);
@@ -215,6 +220,7 @@ export default function CustomerFormScreen() {
       status: status as CustomerInput["status"],
       payment_terms: paymentTerms,
       credit_limit: credit ?? 0,
+      invoice_overdue_nominal: overdue ?? 0,
       phone: phone.trim(),
       whatsapp: whatsapp.trim(),
       pic_name: picName.trim(),
@@ -333,6 +339,7 @@ export default function CustomerFormScreen() {
           {renderSelect({ label: "Purchasing Size *", k: "size", placeholder: "Pilih ukuran" })}
           {renderSelect({ label: "Payment Terms *", k: "paymentTerms", placeholder: "Pilih payment terms" })}
           {renderField({ label: "Credit Limit (Rp)", value: creditLimit, onChangeText: setCreditLimit, placeholder: "0", keyboardType: "numeric", errorKey: "creditLimit" })}
+          {renderField({ label: "Invoice Overdue (Rp)", value: invoiceOverdue, onChangeText: setInvoiceOverdue, placeholder: "0", keyboardType: "numeric", errorKey: "invoiceOverdue" })}
           {renderSelect({ label: "Status *", k: "status", placeholder: "Pilih status" })}
           {status === "Bad Debt"
             ? renderField({

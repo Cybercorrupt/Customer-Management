@@ -113,6 +113,7 @@ export type Customer = {
   pic_name: string;
   payment_terms: string;
   credit_limit: number;
+  invoice_overdue_nominal: number;
 };
 
 export type Slice = { label: string; count: number };
@@ -173,6 +174,7 @@ export type CustomerInput = {
   latitude: number | null;
   longitude: number | null;
   bad_debt_nominal: number;
+  invoice_overdue_nominal: number;
 };
 
 export type AdminStats = {
